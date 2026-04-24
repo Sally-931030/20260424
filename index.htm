@@ -256,6 +256,40 @@
             border: 1px solid var(--gold-dim);
             padding: 5px 10px;
         }
+
+        /* 分頁控制項 */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 30px;
+            padding-bottom: 30px;
+            gap: 15px;
+        }
+        .page-btn {
+            background: #1a1a1a;
+            color: var(--gold);
+            border: 1px solid var(--gold-dim);
+            padding: 8px 20px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: 0.3s;
+        }
+        .page-btn:hover:not(:disabled) {
+            background: var(--gold);
+            color: #000;
+        }
+        .page-btn:disabled {
+            color: var(--text-secondary);
+            border-color: var(--border-dark);
+            cursor: not-allowed;
+            background: transparent;
+        }
+        .page-info {
+            color: var(--text-primary);
+            font-family: "Courier New", monospace;
+            font-size: 1.1rem;
+        }
     </style>
 </head>
 <body>
@@ -326,7 +360,7 @@
                 <div style="color:var(--text-secondary)">搜尋結果：<span id="search-keyword" style="color:#fff"></span></div>
                 <div>
                     <label style="color:var(--text-secondary); margin-right:10px;">權力排序：</label>
-                    <select id="sort-select" onchange="renderResults()">
+                    <select id="sort-select" onchange="currentPage = 1; renderResults()">
                         <option value="total_desc">總收入 (高 → 低)</option>
                         <option value="corp_desc">營利事業捐贈 (高 → 低)</option>
                         <option value="personal_desc">個人捐贈 (高 → 低)</option>
@@ -337,12 +371,19 @@
 
             <div class="card-grid" id="results-container">
                 </div>
+
+            <div class="pagination" id="pagination-container">
+                </div>
         </div>
     </div>
 
     <script>
         let allData = [];
         let currentResults = [];
+        
+        // 分頁狀態變數
+        let currentPage = 1;
+        const itemsPerPage = 12; // 每頁顯示 12 筆
 
         // 數字字串轉換工具
         const parseMoney = (str) => {
@@ -366,14 +407,13 @@
                     row._votes = parseMoney(row['得票數']);
                 });
                 
-                renderLeaderboard('total_desc'); // 預設渲染總收入排行
+                renderLeaderboard('total_desc'); 
                 renderEditorPicks();
             }
         });
 
         // ================= 排行榜邏輯 =================
         function switchLeaderboard(sortType, btnElement) {
-            // 切換按鈕樣式
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             btnElement.classList.add('active');
             renderLeaderboard(sortType);
@@ -411,7 +451,6 @@
 
         // ================= 其他渲染邏輯 =================
         function renderEditorPicks() {
-            // 隨機或挑選特定特徵的人，這裡以「總收入破億」或「前3名」示範
             const sorted = [...allData].sort((a, b) => b._totalIncome - a._totalIncome).slice(0, 3);
             const container = document.getElementById('editor-picks-container');
             container.innerHTML = sorted.map(row => createCardHTML(row)).join('');
@@ -446,6 +485,9 @@
                 (row['地區'] && row['地區'].includes(keyword))
             );
 
+            // 重置分頁狀態
+            currentPage = 1;
+            
             updateSummary();
             renderResults();
             
@@ -481,9 +523,11 @@
             document.getElementById('sum-corp-ratio').innerText = avgCorpRatio + '%';
         }
 
+        // ================= 列表渲染與分頁邏輯 =================
         function renderResults() {
             const sortType = document.getElementById('sort-select').value;
             
+            // 全局排序
             currentResults.sort((a, b) => {
                 if (sortType === 'total_desc') return b._totalIncome - a._totalIncome;
                 if (sortType === 'corp_desc') return b._corpIncome - a._corpIncome;
@@ -493,11 +537,56 @@
             });
 
             const container = document.getElementById('results-container');
+            const paginationContainer = document.getElementById('pagination-container');
+
             if (currentResults.length === 0) {
                 container.innerHTML = '<div style="color:var(--text-secondary); grid-column: 1 / -1; text-align:center; padding: 50px;">查無金流數據，請嘗試其他關鍵字。</div>';
+                paginationContainer.innerHTML = '';
                 return;
             }
-            container.innerHTML = currentResults.map(row => createCardHTML(row)).join('');
+
+            // 計算分頁範圍
+            const totalPages = Math.ceil(currentResults.length / itemsPerPage);
+            if (currentPage > totalPages) currentPage = totalPages;
+
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const paginatedData = currentResults.slice(startIndex, endIndex);
+
+            // 渲染當前頁面的資料卡片
+            container.innerHTML = paginatedData.map(row => createCardHTML(row)).join('');
+
+            // 渲染分頁按鈕
+            renderPaginationControls(totalPages);
+        }
+
+        function renderPaginationControls(totalPages) {
+            const container = document.getElementById('pagination-container');
+            
+            // 如果只有一頁或沒有資料，不顯示分頁列
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let html = `
+                <button class="page-btn" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>上一頁</button>
+                <span class="page-info">${currentPage} / ${totalPages}</span>
+                <button class="page-btn" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>下一頁</button>
+            `;
+            container.innerHTML = html;
+        }
+
+        function changePage(newPage) {
+            const totalPages = Math.ceil(currentResults.length / itemsPerPage);
+            if (newPage >= 1 && newPage <= totalPages) {
+                currentPage = newPage;
+                renderResults();
+                
+                // 切換分頁後，畫面平滑滾動回上方控制列的位置
+                const controlsOffset = document.querySelector('.controls').offsetTop;
+                window.scrollTo({ top: controlsOffset - 20, behavior: 'smooth' });
+            }
         }
     </script>
 </body>

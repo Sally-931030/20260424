@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2016 政治獻金解密｜誰買下了我們的民主？</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        /* ================= 金權政治風 UI ================= */
+        :root {
+            --bg-color: #0d0d0d;
+            --text-primary: #e0e0e0;
+            --text-secondary: #888;
+            --gold: #d4af37;
+            --gold-dim: #8c7322;
+            --blood-red: #8b0000;
+            --border-dark: #333;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        h1, h2, h3, .serif {
+            font-family: "Noto Serif TC", "PMingLiU", serif;
+            letter-spacing: 2px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* 按鈕與輸入框 */
+        input[type="text"] {
+            width: 70%;
+            padding: 15px;
+            font-size: 1.2rem;
+            background: #1a1a1a;
+            border: 1px solid var(--gold-dim);
+            color: var(--gold);
+            outline: none;
+            transition: 0.3s;
+        }
+        input[type="text"]:focus {
+            border-color: var(--gold);
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            background: var(--gold);
+            color: #000;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+        button:hover {
+            background: #f1c40f;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
+        }
+
+        /* 標籤 (範例查詢) */
+        .tag {
+            display: inline-block;
+            margin: 5px;
+            padding: 5px 15px;
+            border: 1px solid var(--text-secondary);
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .tag:hover {
+            border-color: var(--gold);
+            color: var(--gold);
+        }
+
+        /* 視圖切換 */
+        #landing-view, #results-view {
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+        #landing-view.active, #results-view.active {
+            display: block;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* ================= Landing Page ================= */
+        .hero {
+            text-align: center;
+            padding: 100px 0 50px;
+            border-bottom: 1px solid var(--border-dark);
+        }
+        .hero h1 {
+            font-size: 3rem;
+            color: var(--gold);
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        .hero p {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto 40px;
+        }
+        .search-box {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .editor-picks {
+            margin-top: 50px;
+        }
+        .editor-picks h3 {
+            border-left: 4px solid var(--blood-red);
+            padding-left: 10px;
+            color: var(--text-primary);
+        }
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        /* ================= Results Page ================= */
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--gold-dim);
+            margin-bottom: 20px;
+        }
+        .results-header h2 { margin: 0; color: var(--gold); cursor: pointer; }
+        .summary-stats {
+            background: #111;
+            border: 1px solid var(--border-dark);
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-around;
+        }
+        .stat-box { text-align: center; }
+        .stat-box .num { font-size: 1.8rem; color: var(--gold); font-weight: bold; }
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        select {
+            background: #1a1a1a;
+            color: var(--gold);
+            border: 1px solid var(--gold-dim);
+            padding: 5px 10px;
+        }
+
+        /* 卡片設計 */
+        .data-card {
+            background: #151515;
+            border: 1px solid var(--border-dark);
+            padding: 20px;
+            position: relative;
+            transition: 0.3s;
+        }
+        .data-card:hover {
+            border-color: var(--gold-dim);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .data-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 4px; height: 100%;
+            background: var(--gold-dim);
+        }
+        .data-card .name { font-size: 1.5rem; color: #fff; margin-bottom: 5px; font-weight: bold; }
+        .data-card .party { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 15px; }
+        .data-card .money { font-size: 1.8rem; color: var(--gold); font-family: "Courier New", monospace; }
+        .data-card .money::before { content: 'NT$ '; font-size: 1rem; color: var(--text-secondary); }
+        .data-card .details {
+            margin-top: 15px;
+            font-size: 0.9rem;
+            color: #aaa;
+            border-top: 1px dotted var(--border-dark);
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div id="landing-view" class="active">
+            <div class="hero">
+                <h1 class="serif">誰買下了我們的民主？</h1>
+                <p>2016 立委政治獻金全解密。揭開選舉背後的金權網絡，追蹤每一筆流向權力核心的企業與個人捐獻。</p>
+                
+                <div class="search-box">
+                    <input type="text" id="main-search" placeholder="輸入立委姓名、政黨或選區 (如: 柯建銘、民主進步黨)...">
+                    <button onclick="executeSearch()">追蹤金流</button>
+                </div>
+
+                <div class="example-queries">
+                    <span style="color:var(--text-secondary); font-size:0.9rem;">範例查詢：</span>
+                    <span class="tag" onclick="quickSearch('柯建銘')">柯建銘</span>
+                    <span class="tag" onclick="quickSearch('民主進步黨')">民主進步黨</span>
+                    <span class="tag" onclick="quickSearch('中國國民黨')">中國國民黨</span>
+                    <span class="tag" onclick="quickSearch('新北市')">新北市</span>
+                </div>
+            </div>
+
+            <div class="editor-picks">
+                <h3 class="serif">編輯精選案例：企業最愛的權力核心</h3>
+                <div class="card-grid" id="editor-picks-container">
+                    </div>
+            </div>
+        </div>
+
+        <div id="results-view">
+            <div class="results-header">
+                <h2 class="serif" onclick="goHome()">← 返回首頁</h2>
+                <div style="display:flex;">
+                    <input type="text" id="result-search" placeholder="重新搜尋..." style="width:200px; padding:5px; font-size:1rem;">
+                    <button onclick="executeSearch(true)" style="padding:5px 15px; font-size:1rem;">搜尋</button>
+                </div>
+            </div>
+
+            <div class="summary-stats">
+                <div class="stat-box">
+                    <div style="font-size:0.9rem; color:var(--text-secondary)">符合條件候選人</div>
+                    <div class="num" id="sum-count">0</div>
+                </div>
+                <div class="stat-box">
+                    <div style="font-size:0.9rem; color:var(--text-secondary)">總政治獻金規模</div>
+                    <div class="num" id="sum-total">0</div>
+                </div>
+                <div class="stat-box">
+                    <div style="font-size:0.9rem; color:var(--text-secondary)">企業捐贈佔比(平均)</div>
+                    <div class="num" id="sum-corp-ratio">0%</div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div style="color:var(--text-secondary)">搜尋結果：<span id="search-keyword" style="color:#fff"></span></div>
+                <div>
+                    <label style="color:var(--text-secondary); margin-right:10px;">權力排序：</label>
+                    <select id="sort-select" onchange="renderResults()">
+                        <option value="total_desc">總收入 (高 → 低)</option>
+                        <option value="corp_desc">營利事業捐贈 (高 → 低)</option>
+                        <option value="votes_desc">得票數 (高 → 低)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="card-grid" id="results-container">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        let allData = [];
+        let currentResults = [];
+
+        // 數字字串轉換工具 (處理 CSV 中的 "21,483,455")
+        const parseMoney = (str) => {
+            if (!str) return 0;
+            return parseInt(str.replace(/,/g, ''), 10) || 0;
+        };
+        const formatMoney = (num) => num.toLocaleString('zh-TW');
+
+        // 載入與解析 CSV
+        Papa.parse("2016.csv", {
+            download: true,
+            header: true,
+            skipEmptyLines: true,
+            complete: function(results) {
+                allData = results.data;
+                // 預先處理需要計算的數字欄位
+                allData.forEach(row => {
+                    row._totalIncome = parseMoney(row['總收入']);
+                    row._corpIncome = parseMoney(row['營利事業捐贈收入']);
+                    row._votes = parseMoney(row['得票數']);
+                });
+                renderEditorPicks();
+            }
+        });
+
+        // 渲染首頁精選 (抓總收入前3名)
+        function renderEditorPicks() {
+            const sorted = [...allData].sort((a, b) => b._totalIncome - a._totalIncome).slice(0, 3);
+            const container = document.getElementById('editor-picks-container');
+            container.innerHTML = sorted.map(row => createCardHTML(row)).join('');
+        }
+
+        // 產生卡片 HTML
+        function createCardHTML(row) {
+            const corpRatio = row['營利事業捐贈比例'] || '0.00%';
+            return `
+                <div class="data-card">
+                    <div class="name">${row['姓名']} <span style="font-size:0.8rem; color:${row['當選註記'] === '*' ? 'var(--gold)' : '#555'};">${row['當選註記'] === '*' ? '★當選' : ''}</span></div>
+                    <div class="party">${row['地區']} ｜ ${row['推薦政黨']}</div>
+                    <div class="money">${formatMoney(row._totalIncome)}</div>
+                    <div class="details">
+                        企業捐贈：${formatMoney(row._corpIncome)} (${corpRatio})<br>
+                        得票數：${formatMoney(row._votes)}
+                    </div>
+                </div>
+            `;
+        }
+
+        // 搜尋邏輯
+        function executeSearch(fromResultsPage = false) {
+            const inputId = fromResultsPage ? 'result-search' : 'main-search';
+            const keyword = document.getElementById(inputId).value.trim();
+            if (!keyword) return;
+
+            document.getElementById('search-keyword').innerText = `「${keyword}」`;
+            
+            // 模糊搜尋姓名、政黨或地區
+            currentResults = allData.filter(row => 
+                (row['姓名'] && row['姓名'].includes(keyword)) ||
+                (row['推薦政黨'] && row['推薦政黨'].includes(keyword)) ||
+                (row['地區'] && row['地區'].includes(keyword))
+            );
+
+            updateSummary();
+            renderResults();
+            
+            document.getElementById('landing-view').classList.remove('active');
+            document.getElementById('results-view').classList.add('active');
+        }
+
+        function quickSearch(keyword) {
+            document.getElementById('main-search').value = keyword;
+            executeSearch();
+        }
+
+        function goHome() {
+            document.getElementById('results-view').classList.remove('active');
+            document.getElementById('landing-view').classList.add('active');
+            document.getElementById('main-search').value = '';
+        }
+
+        // 更新快速總結 (Quick Summary)
+        function updateSummary() {
+            const count = currentResults.length;
+            const totalMoney = currentResults.reduce((sum, row) => sum + row._totalIncome, 0);
+            const totalCorp = currentResults.reduce((sum, row) => sum + row._corpIncome, 0);
+            
+            let avgCorpRatio = 0;
+            if (totalMoney > 0) {
+                avgCorpRatio = ((totalCorp / totalMoney) * 100).toFixed(2);
+            }
+
+            document.getElementById('sum-count').innerText = count;
+            // 如果破億，用「億」為單位顯示，否則正常顯示
+            document.getElementById('sum-total').innerText = totalMoney > 100000000 
+                ? (totalMoney / 100000000).toFixed(2) + ' 億' 
+                : formatMoney(totalMoney);
+            document.getElementById('sum-corp-ratio').innerText = avgCorpRatio + '%';
+        }
+
+        // 渲染結果列表 (包含排序)
+        function renderResults() {
+            const sortType = document.getElementById('sort-select').value;
+            
+            currentResults.sort((a, b) => {
+                if (sortType === 'total_desc') return b._totalIncome - a._totalIncome;
+                if (sortType === 'corp_desc') return b._corpIncome - a._corpIncome;
+                if (sortType === 'votes_desc') return b._votes - a._votes;
+                return 0;
+            });
+
+            const container = document.getElementById('results-container');
+            if (currentResults.length === 0) {
+                container.innerHTML = '<div style="color:var(--text-secondary); grid-column: 1 / -1; text-align:center; padding: 50px;">查無金流數據，請嘗試其他關鍵字。</div>';
+                return;
+            }
+            container.innerHTML = currentResults.map(row => createCardHTML(row)).join('');
+        }
+    </script>
+</body>
+</html>
